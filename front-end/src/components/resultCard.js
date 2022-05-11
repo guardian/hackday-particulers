@@ -10,14 +10,13 @@ const ResultCard = ({ results }) => {
 
   return (
     <div className="card mb-4">
-      <div className="card-body">
-        <h3 className="d-flex card-title justify-content-between align-items-start mb-4 fw-light">
-          <a className="text-dark text-decoration-none" href={results.url}>{results.title}</a>
+      <div className="card-header">
+        <h3 className="card-title fw-light">
+          <a className="text-dark text-decoration-none" href={results.url}>{results.title.replace("RETRACTED ARTICLE: ", "")}</a>
         </h3>
-        <h4 className="card-subtitle mb-4">
-          <span>Journal name: <em>{results.journalTitle}</em></span>
-          
-        </h4>
+        <h4 className="mt-2"><i className="fas fa-book-open me-2"></i><em>{results.journalTitle}</em></h4>
+      </div>
+      <div className="card-body">
         <div className="mb-4">
           <span className={[
             "badge",
