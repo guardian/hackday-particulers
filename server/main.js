@@ -5,21 +5,25 @@ import {
     ComprehendClient,
     BatchDetectEntitiesCommand,
 } from "@aws-sdk/client-comprehend";
+import FuzzySet from "fuzzyset";
 import fs from "fs";
 import cors from "cors";
+import "dotenv/config";
 
 const rankings = JSON.parse(
     fs.readFileSync(new URL("./rankings2.json", import.meta.url))
 );
+
+const journalTitlesFuzzySet = FuzzySet(rankings.map((o) => o.title));
 
 const app = express();
 const port = 3000;
 const client = new ComprehendClient({
     region: "eu-west-1",
     credentials: {
-        accessKeyId: "",
-        secretAccessKey: "",
-        sessionToken: "",
+        accessKeyId: process.env.AWS_ACCESS_KEY,
+        secretAccessKey: process.env.AWS_SECRET_KEY,
+        sessionToken: process.env.AWS_SESSION_TOKEN,
     },
 });
 
@@ -296,61 +300,65 @@ const desmogOrgs = [
     "Your Energy America",
 ];
 
+const desmogOrgsFuzzySet = FuzzySet(desmogOrgs);
+
 const scrape = async (url) => {
     console.log("SCRAPING");
-    console.log(url);
     const response = await axios.get(url);
-    const data = {};
+    const data = {
+        url,
+        title: null,
+        journalTitle: null,
+        journalImpact: null,
+        acknowledgements: null,
+        articleRetracted: null,
+        organisations: [],
+    };
+    const $ = cheerio.load(response.data);
+    if (!response.data) {
+        return false;
+    }
     if (url.includes("oup.com")) {
-        const $ = cheerio.load(response.data);
-        const title = $("h1.wi-article-title").text().trim();
-        const journalTitle = $(".ww-citation-primary")
+        console.log("OUP");
+        data.title = $("h1.wi-article-title").text()?.trim();
+        data.journalTitle = $(".ww-citation-primary")
             .find("em:first-of-type")
             .text()
-            .trim();
-        const acknowledgements = $("h2")
+            ?.trim();
+        data.acknowledgements = $("h2")
             .toArray()
             .filter((o) => $(o).text() === "Funding")
             .map((o) => $(o).next("p").text())[0]
             ?.trim();
-        data.url = url;
-        data.acknowledgements = acknowledgements;
-        data.title = title;
-        data.journalTitle = journalTitle.trim();
     } else if (url.includes("sciencedirect.com")) {
         console.log("SCIENCE DIRECT");
-        const $ = cheerio.load(response.data);
-        const title = $(".title-text").text().trim();
-        const journalTitle = $("a.publication-title-link").text().trim();
-        const acknowledgements = $("h2")
+        data.title = $(".title-text").text()?.trim();
+        data.journalTitle = $("a.publication-title-link").text()?.trim();
+        data.acknowledgements = $("h2")
             .toArray()
-            .filter((o) => $(o).text() === "Funding")
+            .filter(
+                (o) =>
+                    $(o).text().includes("Funding") ||
+                    $(o).text().includes("Acknowledgements")
+            )
             .map((o) => $(o).next("p").text())[0]
             ?.trim();
-        data.title = title;
-        data.acknowledgements = acknowledgements;
-        data.journalTitle = journalTitle;
     } else if (url.includes("plos.org")) {
         console.log("PLOS");
-        const $ = cheerio.load(response.data);
-        const title = $("#artTitle").text().trim();
-        const journalTitle = $("h1.logo").text().trim();
-        const acknowledgements = $(".articleinfo")
+        data.title = $("#artTitle").text()?.trim();
+        data.journalTitle = $("h1.logo").text()?.trim();
+        data.acknowledgements = $(".articleinfo")
             .find("strong")
             .toArray()
             .filter((o) => $(o).text().includes("Funding"))
             .map((o) => $(o).parent("p").text())[0]
             ?.replace("Funding: ", "")
             .trim();
-        data.title = title;
-        data.acknowledgements = acknowledgements;
-        data.journalTitle = journalTitle;
     } else if (url.includes("springer.com")) {
         console.log("SPRINGER");
-        const $ = cheerio.load(response.data);
-        const title = $(".c-article-title").text().trim();
-        const journalTitle = $("i[data-test=journal-title]").text().trim();
-        const acknowledgements = $("h2")
+        data.title = $(".c-article-title").text()?.trim();
+        data.journalTitle = $("i[data-test=journal-title]").text()?.trim();
+        data.acknowledgements = $("h2")
             .toArray()
             .filter((o) => $(o).text().includes("Acknowledgments"))
             .map((o) =>
@@ -360,15 +368,11 @@ const scrape = async (url) => {
                     .text()
             )[0]
             ?.trim();
-        data.title = title;
-        data.journalTitle = journalTitle;
-        data.acknowledgements = acknowledgements;
     } else if (url.includes("nature.com")) {
         console.log("NATURE");
-        const $ = cheerio.load(response.data);
-        const title = $(".c-article-title").text().trim();
-        const journalTitle = $("i[data-test=journal-title]").text().trim();
-        const acknowledgements = $("h2")
+        data.title = $(".c-article-title").text()?.trim();
+        data.journalTitle = $("i[data-test=journal-title]").text()?.trim();
+        data.acknowledgements = $("h2")
             .toArray()
             .filter((o) => $(o).text().includes("Acknowledgements"))
             .map((o) =>
@@ -378,13 +382,17 @@ const scrape = async (url) => {
                     .text()
             )[0]
             ?.trim();
-        console.log(acknowledgements);
-        data.title = title;
-        data.journalTitle = journalTitle;
-        data.acknowledgements = acknowledgements;
     }
-    if (Object.keys(data).length) {
+    data.title = data.title.replace(/(\r\n|\n|\r)/gm, " ");
+    data.acknowledgements = data.acknowledgements.replace(
+        /(\r\n|\n|\r)/gm,
+        " "
+    );
+    data.articleRetracted = data.title.toLowerCase().includes("retracted");
+    try {
         if (data.acknowledgements) {
+            console.log("ACKS");
+            console.log(data.acknowledgements);
             const detectEntitiesCommand = new BatchDetectEntitiesCommand({
                 LanguageCode: "en",
                 TextList: [data.acknowledgements],
@@ -397,11 +405,12 @@ const scrape = async (url) => {
                         current.Score >= 0.8 &&
                         current.Type === "ORGANIZATION"
                     ) {
+                        const isDisinformationOrganisation = !!(
+                            desmogOrgsFuzzySet.get(current.Text)?.[0][0] > 0.8
+                        );
                         acc.push({
                             name: current.Text,
-                            isDisinformationOrganisation: desmogOrgs
-                                .map((s) => s.toLowerCase())
-                                .includes(current.Text.toLowerCase()),
+                            isDisinformationOrganisation,
                         });
                         return acc;
                     }
@@ -411,16 +420,21 @@ const scrape = async (url) => {
             );
             data.organisations = entities;
         }
-        if (data.journalTitle) {
-            data.journalImpact = rankings.find(
-                (o) =>
-                    o.title.includes(data.journalTitle.toLowerCase()) ||
-                    data.journalTitle.toLowerCase().includes(o.title)
-            )?.impact;
-        }
-        return data;
+    } catch {
+        console.error("Failed to extract organisations");
     }
-    return false;
+    if (data.journalTitle) {
+        const matches = journalTitlesFuzzySet.get(data.journalTitle);
+        if (matches) {
+            const [score, match] = matches[0];
+            if (score > 0.8) {
+                data.journalImpact = rankings.find(
+                    (o) => o.title === match
+                )?.impact;
+            }
+        }
+    }
+    return data;
 };
 
 app.get("/", (req, res) => {
@@ -434,6 +448,9 @@ app.get("/article", cors(), async (req, res) => {
     console.log(req.query.url);
     const data = await scrape(req.query.url);
     console.log(data);
+    if (!data) {
+        res.sendStatus(404);
+    }
     res.json(data);
 });
 
