@@ -10,7 +10,6 @@ const ResultCard = ({ results }) => {
 
   return (
     <div className="card mb-4">
-      {/* <h5 className="card-header">Papers referenced</h5> */}
       <div className="card-body">
         <h3 className="d-flex card-title justify-content-between align-items-start mb-4 fw-light">
           <a className="text-dark text-decoration-none" href={results.url}>{results.title}</a>
