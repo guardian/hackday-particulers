@@ -304,156 +304,165 @@ const desmogOrgsFuzzySet = FuzzySet(desmogOrgs);
 
 const scrape = async (url) => {
     console.log("SCRAPING");
-    const response = await axios.get(url);
-    const data = {
-        url,
-        title: null,
-        journalTitle: null,
-        journalImpact: null,
-        acknowledgements: null,
-        articleRetracted: null,
-        organisations: [],
-        doi: null,
-        citationCount: null,
-    };
-    const $ = cheerio.load(response.data);
-    if (!response.data) {
-        return false;
-    }
-    if (url.includes("oup.com")) {
-        console.log("OUP");
-        data.title = $("h1.wi-article-title").text()?.trim();
-        data.journalTitle = $(".ww-citation-primary")
-            .find("em:first-of-type")
-            .text()
-            ?.trim();
-        data.acknowledgements = $("h2")
-            .toArray()
-            .filter((o) => $(o).text() === "Funding")
-            .map((o) => $(o).next("p").text())[0]
-            ?.trim();
-    } else if (url.includes("sciencedirect.com")) {
-        console.log("SCIENCE DIRECT");
-        data.title = $(".title-text").text()?.trim();
-        data.journalTitle = $("a.publication-title-link").text()?.trim();
-        data.acknowledgements = $("h2")
-            .toArray()
-            .filter(
-                (o) =>
-                    $(o).text().includes("Funding") ||
-                    $(o).text().includes("Acknowledgements")
+    try {
+        const response = await axios.get(url);
+        const data = {
+            url,
+            title: null,
+            journalTitle: null,
+            journalImpact: null,
+            acknowledgements: null,
+            articleRetracted: null,
+            organisations: [],
+            doi: null,
+            citationCount: null,
+        };
+        const $ = cheerio.load(response.data);
+        if (!response.data) {
+            return false;
+        }
+        if (url.includes("oup.com")) {
+            console.log("OUP");
+            data.title = $("h1.wi-article-title").text()?.trim();
+            data.journalTitle = $(".ww-citation-primary")
+                .find("em:first-of-type")
+                .text()
+                ?.trim();
+            data.acknowledgements = $("h2")
+                .toArray()
+                .filter((o) => $(o).text() === "Funding")
+                .map((o) => $(o).next("p").text())[0]
+                ?.trim();
+        } else if (url.includes("sciencedirect.com")) {
+            console.log("SCIENCE DIRECT");
+            data.title = $(".title-text").text()?.trim();
+            data.journalTitle = $("a.publication-title-link").text()?.trim();
+            data.acknowledgements = $("h2")
+                .toArray()
+                .filter(
+                    (o) =>
+                        $(o).text().includes("Funding") ||
+                        $(o).text().includes("Acknowledgements")
+                )
+                .map((o) => $(o).next("p").text())[0]
+                ?.trim();
+        } else if (url.includes("plos.org")) {
+            console.log("PLOS");
+            data.title = $("#artTitle").text()?.trim();
+            data.journalTitle = $("h1.logo").text()?.trim();
+            data.acknowledgements = $(".articleinfo")
+                .find("strong")
+                .toArray()
+                .filter((o) => $(o).text().includes("Funding"))
+                .map((o) => $(o).parent("p").text())[0]
+                ?.replace("Funding: ", "")
+                .trim();
+        } else if (url.includes("springer.com")) {
+            console.log("SPRINGER");
+            data.title = $(".c-article-title").text()?.trim();
+            data.journalTitle = $("i[data-test=journal-title]").text()?.trim();
+            data.acknowledgements = $("h2")
+                .toArray()
+                .filter((o) => $(o).text().includes("Acknowledgments"))
+                .map((o) =>
+                    $(o)
+                        .next(".c-article-section__content")
+                        .find("p:first-child")
+                        .text()
+                )[0]
+                ?.trim();
+        } else if (url.includes("nature.com")) {
+            console.log("NATURE");
+            data.title = $(".c-article-title").text()?.trim();
+            data.journalTitle = $("i[data-test=journal-title]").text()?.trim();
+            data.acknowledgements = $("h2")
+                .toArray()
+                .filter((o) => $(o).text().includes("Acknowledgements"))
+                .map((o) =>
+                    $(o)
+                        .next(".c-article-section__content")
+                        .find("p:first-child")
+                        .text()
+                )[0]
+                ?.trim();
+            data.doi = $(
+                ".c-bibliographic-information__list-item--doi .c-bibliographic-information__value"
             )
-            .map((o) => $(o).next("p").text())[0]
-            ?.trim();
-    } else if (url.includes("plos.org")) {
-        console.log("PLOS");
-        data.title = $("#artTitle").text()?.trim();
-        data.journalTitle = $("h1.logo").text()?.trim();
-        data.acknowledgements = $(".articleinfo")
-            .find("strong")
-            .toArray()
-            .filter((o) => $(o).text().includes("Funding"))
-            .map((o) => $(o).parent("p").text())[0]
-            ?.replace("Funding: ", "")
-            .trim();
-    } else if (url.includes("springer.com")) {
-        console.log("SPRINGER");
-        data.title = $(".c-article-title").text()?.trim();
-        data.journalTitle = $("i[data-test=journal-title]").text()?.trim();
-        data.acknowledgements = $("h2")
-            .toArray()
-            .filter((o) => $(o).text().includes("Acknowledgments"))
-            .map((o) =>
-                $(o)
-                    .next(".c-article-section__content")
-                    .find("p:first-child")
-                    .text()
-            )[0]
-            ?.trim();
-    } else if (url.includes("nature.com")) {
-        console.log("NATURE");
-        data.title = $(".c-article-title").text()?.trim();
-        data.journalTitle = $("i[data-test=journal-title]").text()?.trim();
-        data.acknowledgements = $("h2")
-            .toArray()
-            .filter((o) => $(o).text().includes("Acknowledgements"))
-            .map((o) =>
-                $(o)
-                    .next(".c-article-section__content")
-                    .find("p:first-child")
-                    .text()
-            )[0]
-            ?.trim();
-        data.doi = $(
-            ".c-bibliographic-information__list-item--doi .c-bibliographic-information__value"
-        )
-            .text()
-            ?.trim()
-            .replace("https://doi.org/", "");
-    }
-    data.title = data.title.replace(/(\r\n|\n|\r)/gm, " ");
-    data.acknowledgements = data.acknowledgements.replace(
-        /(\r\n|\n|\r)/gm,
-        " "
-    );
-    data.articleRetracted = data.title.toLowerCase().includes("retracted");
-    try {
+                .text()
+                ?.trim()
+                .replace("https://doi.org/", "");
+        }
+        if (data.title) {
+            data.title = data.title.replace(/(\r\n|\n|\r)/gm, " ");
+        }
         if (data.acknowledgements) {
-            console.log("ACKS");
-            console.log(data.acknowledgements);
-            const detectEntitiesCommand = new BatchDetectEntitiesCommand({
-                LanguageCode: "en",
-                TextList: [data.acknowledgements],
-            });
-            const response = await client.send(detectEntitiesCommand);
-            const entities = response?.ResultList[0].Entities.reduce(
-                (acc, current) => {
-                    if (
-                        !acc.some((o) => o.name === current.Text) &&
-                        current.Score >= 0.8 &&
-                        current.Type === "ORGANIZATION"
-                    ) {
-                        const isDisinformationOrganisation = !!(
-                            desmogOrgsFuzzySet.get(current.Text)?.[0][0] > 0.8
-                        );
-                        acc.push({
-                            name: current.Text,
-                            isDisinformationOrganisation,
-                        });
+            data.acknowledgements = data.acknowledgements.replace(
+                /(\r\n|\n|\r)/gm,
+                " "
+            );
+        }
+        data.articleRetracted = data.title.toLowerCase().includes("retracted");
+        try {
+            if (data.acknowledgements) {
+                console.log("ACKS");
+                console.log(data.acknowledgements);
+                const detectEntitiesCommand = new BatchDetectEntitiesCommand({
+                    LanguageCode: "en",
+                    TextList: [data.acknowledgements],
+                });
+                const response = await client.send(detectEntitiesCommand);
+                const entities = response?.ResultList[0].Entities.reduce(
+                    (acc, current) => {
+                        if (
+                            !acc.some((o) => o.name === current.Text) &&
+                            current.Score >= 0.8 &&
+                            current.Type === "ORGANIZATION"
+                        ) {
+                            const isDisinformationOrganisation = !!(
+                                desmogOrgsFuzzySet.get(current.Text)?.[0][0] >
+                                0.8
+                            );
+                            acc.push({
+                                name: current.Text,
+                                isDisinformationOrganisation,
+                            });
+                            return acc;
+                        }
                         return acc;
-                    }
-                    return acc;
-                },
-                []
-            );
-            data.organisations = entities;
+                    },
+                    []
+                );
+                data.organisations = entities;
+            }
+        } catch {
+            console.error("Failed to extract organisations");
         }
-    } catch {
-        console.error("Failed to extract organisations");
-    }
-    try {
-        if (data.doi) {
-            const crossrefData = await axios.get(
-                `http://api.crossref.org/works/${data.doi}`
-            );
-            data.citationCount =
-                crossrefData?.data["message"]["references-count"];
+        try {
+            if (data.doi) {
+                const crossrefData = await axios.get(
+                    `http://api.crossref.org/works/${data.doi}`
+                );
+                data.citationCount =
+                    crossrefData?.data["message"]["references-count"];
+            }
+        } catch {
+            console.error("Could not connect to CrossRef");
         }
-    } catch {
-        console.error("Could not connect to CrossRef");
-    }
-    if (data.journalTitle) {
-        const matches = journalTitlesFuzzySet.get(data.journalTitle);
-        if (matches) {
-            const [score, match] = matches[0];
-            if (score > 0.8) {
-                data.journalImpact = rankings.find(
-                    (o) => o.title === match
-                )?.impact;
+        if (data.journalTitle) {
+            const matches = journalTitlesFuzzySet.get(data.journalTitle);
+            if (matches) {
+                const [score, match] = matches[0];
+                if (score > 0.8) {
+                    data.journalImpact = rankings.find(
+                        (o) => o.title === match
+                    )?.impact;
+                }
             }
         }
+        return data;
+    } catch {
+        return false;
     }
-    return data;
 };
 
 app.get("/", (req, res) => {
@@ -465,12 +474,12 @@ app.get("/article", cors(), async (req, res) => {
         return res.send("Enter a URL");
     }
     console.log(req.query.url);
-    const data = await scrape(req.query.url);
-    console.log(data);
-    if (!data) {
+    try {
+        const data = await scrape(req.query.url);
+        res.json(data);
+    } catch {
         res.sendStatus(404);
     }
-    res.json(data);
 });
 
 app.listen(port, () => {
