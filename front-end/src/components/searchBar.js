@@ -22,7 +22,7 @@ const SearchBar = ({fetch}) => {
         <Form.Group as={Col}>
           <FormControl
             type="text"
-            placeholder="Paste the article url here"
+            placeholder="Paste article URL here"
             className="searchbar"
             aria-label="Search"
             onChange={onInput}
