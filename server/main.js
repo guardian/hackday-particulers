@@ -313,6 +313,8 @@ const scrape = async (url) => {
         acknowledgements: null,
         articleRetracted: null,
         organisations: [],
+        doi: null,
+        citationCount: null,
     };
     const $ = cheerio.load(response.data);
     if (!response.data) {
@@ -382,6 +384,12 @@ const scrape = async (url) => {
                     .text()
             )[0]
             ?.trim();
+        data.doi = $(
+            ".c-bibliographic-information__list-item--doi .c-bibliographic-information__value"
+        )
+            .text()
+            ?.trim()
+            .replace("https://doi.org/", "");
     }
     data.title = data.title.replace(/(\r\n|\n|\r)/gm, " ");
     data.acknowledgements = data.acknowledgements.replace(
@@ -422,6 +430,17 @@ const scrape = async (url) => {
         }
     } catch {
         console.error("Failed to extract organisations");
+    }
+    try {
+        if (data.doi) {
+            const crossrefData = await axios.get(
+                `http://api.crossref.org/works/${data.doi}`
+            );
+            data.citationCount =
+                crossrefData?.data["message"]["references-count"];
+        }
+    } catch {
+        console.error("Could not connect to CrossRef");
     }
     if (data.journalTitle) {
         const matches = journalTitlesFuzzySet.get(data.journalTitle);
