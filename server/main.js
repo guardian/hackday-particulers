@@ -17,7 +17,7 @@ const rankings = JSON.parse(
 const journalTitlesFuzzySet = FuzzySet(rankings.map((o) => o.title));
 
 const app = express();
-const port = 3000;
+const port = 8000;
 const client = new ComprehendClient({
     region: "eu-west-1",
     credentials: {

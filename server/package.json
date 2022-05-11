@@ -4,6 +4,9 @@
   "main": "main.js",
   "license": "MIT",
   "type": "module",
+  "scripts": {
+    "start": "node main.js"
+  },
   "dependencies": {
     "@aws-sdk/client-comprehend": "^3.87.0",
     "axios": "^0.27.2",
