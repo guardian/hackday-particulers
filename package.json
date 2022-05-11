@@ -3,5 +3,13 @@
   "version": "1.0.0",
   "main": "main.js",
   "author": "Raphael Kabo <raphaelkabo@hey.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "start:client": "cd front-end && npm run start",
+    "start:server": "cd server && npm run start",
+    "start": "concurrently \"npm:start:server\" \"npm:start:client\""
+  },
+  "dependencies": {
+    "concurrently": "^7.1.0"
+  }
 }
