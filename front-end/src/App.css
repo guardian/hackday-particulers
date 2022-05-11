@@ -1,0 +1,73 @@
+
+.nav-bar {
+  background-color: #971919;
+  margin-bottom: 30px;
+}
+
+.logo-container {
+  display: flex;
+}
+
+.logo {
+  width: 50%;
+  margin: 0 auto;
+}
+
+.brand-text {
+  color: white;
+  font-size: 25px;
+  margin-right: 20px;
+  font-family: 'Macondo', cursive;
+}
+
+.search-bar-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50%;
+}
+
+.searchbar {
+  width: 500px;
+  margin-right: 2px;
+}
+
+.copy {
+  text-align: center;
+  font-family: 'Teko', sans-serif;
+  font-size: 50px;
+}
+
+.background-box {
+  align-items: center;
+  justify-content: center;
+  display: flex;
+}
+
+.nav-bar-link {
+  text-decoration: none;
+  color: white;
+}
+
+.submit-button {
+  background-color: #971919;
+  border: none;
+  color: white;
+}
+
+.submit-button:hover {
+  background-color: #b00;
+}
+
+.nav-bar-link {
+  color: white;
+  margin: 10px;
+}
+
+.results-container {
+  margin: 50px 250px;
+}
+.article-title {
+  font-size: 25px;
+  font-weight: bold;
+}
